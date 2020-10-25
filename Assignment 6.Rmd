@@ -1,0 +1,79 @@
+---
+title: "Practising functions"
+author: "Helene Andersen"
+date: "10/25/2020"
+output: html_document
+---
+
+# First I loaded the gapminder dataset
+
+```{r setup, include=FALSE}
+library(gapminder)
+library(tidyverse)
+library(ggplot2)
+library(gganimate)
+```
+
+1. Define a defensive function that calculates the Gross Domestic Product of a nation from the data available in the gapminder dataset. Using that function, calculate the GDP of Denmark in the following years: 1967, 1977, 1987, 1997, 2007, and 2017.
+
+# I started by creating a function where I multiplied the population and the gdpPercap
+```{r}
+calcGDP <- function(dat){
+  gdp <- dat$pop * dat$gdpPercap
+return(gdp)
+}
+```
+```{r}
+calcGDP <- function(dat, year=NULL, country=NULL) {
+  if(!is.null(year)) {
+    dat <- dat[dat$year %in% year, ]
+  }
+  if (!is.null(country)) {
+    dat <- dat[dat$country %in% country,]
+  }
+  gdp <- dat$pop * dat$gdpPercap
+
+  new <- cbind(dat, gdp=gdp)
+  return(new)
+}
+  
+```
+
+# Then I used this function to calculate the GDP of Denmark in the years: 1967, 1977, 1987, 1997, 2007, 2017. Then I told the function to arrange it descending so it would be structured by the highest gdpPercap first
+```{r}
+calcGDP(gapminder, year = c(1967, 1977, 1987, 1997, 2007, 2017), country = "Denmark") %>% 
+  arrange(desc(gdpPercap))
+```
+
+2. Write a script that loops over each country in the gapminder dataset, tests whether the country starts with a ‘B’ , and print out whether the life expectancy is smaller than 50, between 50 and 70, or greater than 70.
+
+# Firstly, I will grep the countries starting with a "B". They are listed below
+```{r}
+B_countries <- grep("^B", unique(gapminder$country), value=TRUE)
+B_countries
+```
+
+#I don't get why this function is necessary, but it did not work without it. Can anyone help?
+```{r}
+gapminder <- as.data.frame(gapminder) 
+```
+
+
+#Then I created a function that will tell me the average life expectancies across the different countries starting with a "B". I told the function to print "Average Life Expectancy in", and then made three different functions. One where the average life expectancy is equal to or larger than 70, between 50 and 70, and smaller than 50
+```{r}
+for (iCountry in B_countries) {
+  tmp <- mean(gapminder[gapminder$country == iCountry, "lifeExp"])
+  if(tmp >= 70){
+    print(paste("Average Life Expectancy in", iCountry, "is equal to or larger than")) }  
+  else if (tmp>=50) {
+   print(paste("Average Life Expectancy in", iCountry, "is between 50 and 70 years"))}
+  else { print(paste("Average Life Expectancy in", iCountry, "is smaller than 50"))
+  }}
+```
+
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
