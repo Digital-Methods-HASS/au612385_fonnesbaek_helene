@@ -1,0 +1,101 @@
+---
+title: 'W7: Homework'
+author: "Helene Andersen"
+date: "20 July 2020, updated `r format(Sys.time(), '%d %B, %Y')`"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Goal
+I want to be able to analyse the data from OECD on gender inequality. My focus will be on the share of female seats at the largest listed companies. Data from: https://stats.oecd.org/index.aspx?queryid=54753 
+
+# Solution
+First, install a handful of classic R packages and load their libraries:
+
+- `rvest` for web-scraping
+- `dplyr` for data-wrangling
+- `tidyr` for data transformation
+- `stringr` for string manipulation
+- `janitor` for clean headers that your OCD will love you for
+
+
+```{r libraries}
+library(rvest)
+library(dplyr)
+library(tidyr)
+library(stringr)
+library(janitor)
+```
+
+
+## Scrape the data
+
+Next, learn how scrape the content of the website and extract the HTML table:
+```{r}
+url <- "https://stats.oecd.org/index.aspx?queryid=54753"
+# scrape the website
+url_html <- read_html(url)
+```
+
+The data have to be cleaned before I can use it
+
+```{r , option1, eval=FALSE}
+whole_table <- url_html %>% 
+ html_nodes("tr") %>% #en række (tr)
+ html_text(trim = FALSE) 
+head(whole_table)
+```
+I have to sort out the first lines of the table for it to make sense
+
+```{r, option2}
+whole_table <- url_html %>% 
+ html_nodes("td") %>% #en individuel celle (td)
+ html_text(trim = FALSE) 
+head(whole_table)
+```
+
+
+```{r, option3}
+whole_table <- url_html %>% 
+ html_nodes("table") %>%
+ html_table(fill = TRUE)  #str(whole_table) turns out to be a list
+
+```
+
+If you run a `head()` on the resulting `whole_table`, you will see that it is a list with unnamed elements marked by numbers in double brackets, such as [[1]]. 
+What is a list? A table-like looking structure that needs one more transformation (in this case, unlisting) before it becomes a useful dataframe. 
+
+```{r htmltodf}
+new_table <- do.call(cbind,unlist(whole_table, recursive = FALSE)) 
+head(new_table)
+```
+
+Now I tidy the data by saying it should only count in the rows 8-51 nand the colomns 2-13
+
+```{r}
+femaleseats <- new_table[8:51,2:13] #chose the rows and columns I want to look at
+femaleseats <- femaleseats[,c(1,3:12)] #chose the columns I want to eliminate/look at
+colnames(femaleseats) <- c("Country", "2010", "2011", "2012", "2013", "2014", "2015", "2016", "2017", "2018", "2019")
+```
+
+Now I will make some visualization on my script
+
+```{r}
+fseats <- as_tibble(femaleseats) 
+```
+
+```{r}
+fseats %>% 
+	filter(Country== "Denmark")
+```
+
+```{r}
+plot(fseats, "Denmark")
+```
+This did not work as the visualization.... but I did not want to spend any more time on it!
+
