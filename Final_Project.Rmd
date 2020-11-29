@@ -1,0 +1,453 @@
+---
+title: "Maternity Leave"
+output: html_document
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Loading packages
+
+```{r libraries}
+library(rvest)
+library(dplyr)
+library(tidyr)
+library(stringr)
+library(janitor)
+library(tidyverse)
+library(ggplot2)
+```
+
+# Scraping data
+
+First I scrape the content of the website and extract the HTML table
+```{r}
+url <- "https://stats.oecd.org/index.aspx?queryid=54760&fbclid=IwAR1Jt-NDjC_e4iBKlxrIpKSIBGtmsJYY1V2R6UmEIXT_sAelAk1_2S_YvRU#"
+# scrape the website
+url_html <- read_html(url)
+```
+
+Then I extract the whole HTML table through the <table> tag.
+```{r}
+whole_table <- url_html %>% 
+ html_nodes("table") %>%
+ html_table(fill = TRUE)  #str(whole_table) turns out to be a list
+```
+
+If you run a `head()` on the resulting `whole_table`, you will see that it is a list with unnamed elements marked by numbers in double brackets, such as [[1]]. 
+```{r}
+new_table <- do.call(cbind,unlist(whole_table, recursive = FALSE)) 
+head(new_table) 
+```
+
+The line above takes the whole table from the website with all rows and column. It does not look nice and it shows things that I am not interested in.
+
+# Tidying the data
+
+In my case I only want to look at the countries' average of weeks of maternity leave through the time period (1990 to 2016). Therefore I filter the data as shown in the following lines
+
+```{r, create the table}
+new_table <- as.data.frame(new_table)
+mleave <- new_table[8:44,2:30] #I choose the rows and columns I want to look at 
+mleave <- mleave[,c(1,3:29)] #I choose the columns I want to both eliminate and look at
+colnames(mleave) <- c("country", "1990", "1991", "1992", "1993", "1994", "1995", "1996", "1997", "1998", "1999", "2000", "2001", "2002", "2003", "2004", "2005", "2006", "2007", "2008", "2009", "2010", "2011", "2012", "2013", "2014", "2015", "2016") #I assign new column names to years
+
+mleave <- as.data.frame(lapply(mleave, function(y) gsub("\\.\\.", NA, y))) #I change the .. to NA 
+
+mleave
+```
+
+In the table the numbers are set at characters. In the following I change these to numeric.
+
+```{r, numbers to numeric}
+cols.num <- c("X1990", "X1991", "X1992", "X1993", "X1994", "X1995", "X1996", "X1997", "X1998", "X1999", "X2000", "X2001", "X2002", "X2003", "X2004", "X2005", "X2006", "X2007", "X2008", "X2009", "X2010", "X2011", "X2012", "X2013", "X2014", "X2015", "X2016") #Columns from characters to numeric
+mleave[cols.num] <- sapply(mleave[cols.num],as.numeric) #Recode characters as numeric
+sapply(mleave, class) #Print classes of all colums
+
+```
+
+In the table the countries are set to be characters. In the following I change these to factors.
+
+```{r, countries from character to factor}
+mleave$country <- as.factor(mleave$country) #Columns from characters to factor
+```
+
+In the following I restructure the table so it knows that every country has numers from different years.
+
+```{r, years}
+mleave_long <- mleave %>% gather(year, weeks_mleave, -country) #restructuring the table so it knows that every country has numbers from different years
+
+```
+
+Now we have finished tidying the table from OECD and can begin making visualizations.  
+
+# Visualizations 
+
+```{r, packages}
+install.packages("gifski")
+install.packages("png")
+library(gifski)
+library(png)
+library(ggplot2)
+library(scales)
+```
+
+Meta: Line geoms, point geom, bars geoms 
+
+One way of vizualizing is ...
+
+```{r, geom jitter}
+mleave_long %>% 
+  ggplot(aes(x = year, y = weeks_mleave))+
+  geom_jitter(aes(color = country))
+
+```
+Another way of visualizing the data can be done like this
+
+```{r, geom line}
+ggplot(mleave_long) +
+  geom_line(mapping = aes(x = year, y = weeks_mleave, group = country, color = country))
+
+```
+
+```{r}
+mnordic <-  mleave_long %>% filter(country %in% c("Denmark","Iceland", "Sweden","Norway", "Finland")) %>%  filter(year %in% c("X2011", "X2012", "X2013", "X2013", "X2014", "X2015", "X2016"))
+mnordic$year <- str_remove(mnordic$year, "X")
+```
+
+```{r}
+ggplot(mnordic) +
+  geom_line(mapping = aes(x = year, y = weeks_mleave, group = country, color = country)) + ggtitle("Length of Maternity Leave in Nordic Countries")
+
+# I will try to merge the two statistics
+
+merged2011 <- filter(merged, year == "2011")
+merged2016 <- filter(merged, year == "2016")
+
+anim1 <- ggplot(merged2016,aes(x = weeks_mleave, y = percentage, group = country, color = country))+
+  geom_point(size=8, alpha = 0.5)+
+  xlim(10,24)+
+  ylim(25,41)+
+  xlab("Weeks")+
+  ylab("Percentage")+
+  ggtitle("MATERNITY LEAVES' INFLUENCE ON SHARE OF FEMALE MANAGERS")+
+  geom_text(aes(label=country),hjust=0, vjust=2.5)+theme_solarized()+ scale_color_solarized()+
+  theme(legend.position = "none")
+
+install.packages("ggthemes")
+library("ggthemes")
+
+anim1
+```
+
+```{r}
+library(gifski)
+library(png)
+library(gganimate)
+merged$year <- as.numeric(as.character(merged$year))
+anim2 <-ggplot(merged, aes(x = weeks_mleave, y = percentage, group = country, color = country))  +
+  geom_point(size=8, alpha = 0.4)+
+  transition_time(year)+
+   xlab("Weeks of maternity leave")+
+  ylab("Percentage of female managers")+
+  labs(title = "Year: {round(frame_time)}")+
+  theme_solarized()
+anim2
+class(merged$year)
+```
+
+Now we have maked it move! As we can see, Denmark is the country with the 
+
+Now I will try to
+
+```{r}
+#Make it a GIF
+
+animate(anim2, fps = 10, width = 750, height = 450)
+anim_save("gender.gif")
+```
+
+
+```{r}
+merged <- merge(mnordic, fnselected, by=c("year", "country"))
+```
+
+
+```{r}
+ggplot(mleave_long) +
+  geom_bar(mapping = aes(x = weeks_mleave, group = country, color = country))
+```
+
+
+```{r}
+facet_wrap(~ country)
+```
+
+
+facet_wrap(~ variabel/gruppering/det man vil have grupperet)
+
+- samler lande til eks. norden/syd osv.. 
+
+```{r, }
+
+```
+
+
+
+```{r, graph of Denmark's development}
+ggplot(subset(mleave_long, country == "Denmark"), aes(year, weeks_mleave)) +
+         geom_line()
+```
+
+# Moving Animations 
+
+```{r}
+options(scipen = 999) # I found help here: https://stackoverflow.com/questions/5352099/how-to-disable-scientific-notation
+anim2 <- ggplot(mleave_long, aes(year, weeks_mleave, size = ??)) + # I title animation two
+  geom_point() +
+  transition_time(year) + 
+  labs(title = "Year: {frame_time}") # The title (year) will change in sync with the animation
+anim2
+```
+
+
+
+```{r, year as numeric}
+cols.num <- c("X1990", "X1991", "X1992", "X1993", "X1994", "X1995", "X1996", "X1997", "X1998", "X1999", "X2000", "X2001", "X2002", "X2003", "X2004", "X2005", "X2006", "X2007", "X2008", "X2009", "X2010", "X2011", "X2012", "X2013", "X2014", "X2015", "X2016") #Columns from characters to numeric
+mleave_long$year <- as.numeric(mleave_long$year) 
+
+```
+
+
+
+THE OTHER DATA ON FEMALE MANAGERS
+
+---
+title: "SofFemaleManagers"
+author: "Helene Andersen"
+date: "11/3/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Goal
+I want to be able to analyse OECD.stat's data on share of female managers from 2011-2018 (https://stats.oecd.org/index.aspx?queryid=96330)
+
+# Solution
+First, install a handful of classic R packages and load their libraries:
+
+- `rvest` for web-scraping
+- `dplyr` for data-wrangling
+- `tidyr` for data transformation
+- `stringr` for string manipulation
+- `janitor` for clean headers that your OCD will love you for
+- 'tidyverse' for cleaning data
+- 'ggplot2' for vizualisations
+
+# Loading packages 
+```{r libraries}
+library(rvest)
+library(dplyr)
+library(tidyr)
+library(stringr)
+library(janitor)
+library(tidyverse)
+library(ggplot2)
+```
+
+
+## Scrape the data
+
+Next, learn how scrape the content of the website and extract the HTML table:
+```{r}
+url <- "https://stats.oecd.org/index.aspx?queryid=96330"
+# scrape the website
+url_html <- read_html(url)
+```
+
+
+The following option let's us extract the whole HTML table through the <table> tag.
+
+```{r, option3}
+whole_table <- url_html %>% 
+ html_nodes("table") %>%
+ html_table(fill = TRUE)  #str(whole_table) turns out to be a list
+```
+
+If you run a `head()` on the resulting `whole_table`, you will see that it is a list with unnamed elements marked by numbers in double brackets, such as [[1]]. 
+
+```{r htmltodf}
+new_table <- do.call(cbind,unlist(whole_table, recursive = FALSE)) 
+head(new_table) 
+```
+
+The line above takes the whole table from the website with some rows and coloumns. It does not look nice and it shows thing that I am not interested in.
+
+# Tidying the data
+
+In my case I only want to look at the countries' share of female managers through the time period (2011 to 2018). Therefore I filter the data as shown in the following lines
+
+```{r create the table}
+femalemanagers <- new_table[8:52,2:18] #I choose the rows and columns I want to look at 
+femalemanagers <- femalemanagers[,c(1,3:10)] #I choose the columns I want to both eliminate and look at
+colnames(femalemanagers) <- c("country", "2011", "2012", "2013", "2014", "2015", "2016", "2017", "2018") #I assign new column names to years
+femalemanagers
+```
+
+I can see that the data is listed in characters (<chr>), and I want to convert some of it to numeric to be able to create visualizations
+
+I got help from this website: https://stackoverflow.com/questions/22772279/converting-multiple-columns-from-character-to-numeric-format-in-r
+
+```{r from characters to numeric}
+cols.num <- c("2011","2012","2013","2014","2015","2016","2017","2018") # we tell r which colons should be numeric
+fmanagers[cols.num] <- sapply(fmanagers[cols.num],as.numeric) # in this section we convert the colomns in our dataset to be numeric instead of characters
+sapply(fmanagers, class) # now we use the 'sapply' to check the colomns' classes. We see that now it is numeric, and therefore we can begin to visualize our data
+```
+
+To be able to create the wanted visualizations, I will need to assign the different countries as factors so that I can distinguish between them. In the following I will ascribe the countries as factors:
+
+```{r countries from character to factor}
+fmanagers$country <- as.character(fmanagers$country)
+sapply(fmanagers, class)
+```
+
+
+Now we have finished tidying the data. We will move on to some visualizations on the share of female countries in different countries
+
+```{r, the countries with highest shares in 2011}
+fmanagers_long <- fmanagers %>% gather(year, percentage, -country) # I want to tidy my data further so that there will be a specific column with the year assigned. Now I can hopefully start visualizing my data...
+```
+
+Now I have finished tidying my data so I will be able to move on with the visualizations
+
+# Visualizations 
+
+```{r}
+theme_set(theme_bw()) # I set the theme to black and white for better visualization
+ggplot(fmanagers_long) +
+  geom_line(mapping = aes(x = year, y =percentage, group = country)) #by selecting the country and mapping that the visualization should include years, countries and percentage
+```
+Here I have all the years and all the countries listed. But it does not look very manageable, so I will try to pick out the countries I want to compare and illustrate them in different colours. The chosen countries are: Denmark, Iceland, Colombia, Italy, and the OECD average.
+
+```{r}
+fmanagers_long %>% 
+  ggplot(aes(x =  year, y = percentage, country == "Japan"))+
+  geom_jitter()
+```
+
+```{r}
+fse
+ 
+```
+
+
+```{r}
+fmanagers_long %>% 
+  ggplot(aes(x =  year, y = percentage))+
+  geom_jitter(aes(color = country))
+```
+
+```{r}
+ggplot(fmanagers_long) +
+  geom_line(mapping = aes(x =  year, y = percentage, group = country, color = country))
+  
+```
+Now I want to select the four countries, Denmark, Iceland, Colombia and Italy and the OECD avarage to see how the share of female managers and the development in these countries look. Therefore I create a new object called 'fselected'.
+```{r}
+fselected <- fmanagers_long %>% filter(country %in% c("Denmark","Iceland", "Colombia", "Italy", "OECD - Average"))
+fselected
+```
+
+Now that I have created this object I will use it to visualize the difference within the countries. I will put it in my earlier ggplot-visualization and add a title.
+
+```{r}
+ggplot(fselected) +
+  geom_line(mapping = aes(x =  year, y = percentage, group = country, color = country)) + ggtitle("Share of Female Managers")
+```
+The visualization above shows the share of female managers. It shows if we look at the selected countries, both Italy and Denmark is below the average share of female managers. With this script it is possible to compare the different countries and to select specific countries you want to compare.
+
+```{r}
+fnordic <-  fmanagers_long %>% filter(country %in% c("Denmark","Iceland", "Sweden","Norway", "Finland", "OECD - Average"))
+```
+
+```{r}
+ggplot(fnordic) +
+  geom_line(mapping = aes(x =  year, y = percentage, group = country, color = country)) + ggtitle("Share of Female Managers in Nordic Countries")+ theme_solarized()+ scale_color_solarized()+
+  xlab("Year")+
+  ylab("Percentage")
+```
+
+```{r}
+ggplot(mnordic) +
+  geom_line(mapping = aes(x = year, y = weeks_mleave, group = country, color = country)) + ggtitle("Length of Maternity Leave in Nordic Countries") +theme_solarized()+ scale_color_solarized()+
+  xlab("Year")+
+  ylab("Weeks")
+```
+
+
+As we can see above, the countries that Denmark normally compare it self with are doing a lot better than Denmark when it comes to the share of female managers. Also, Denmark (and Finland) is doing worse than the OECD average which includes the 45 OECD countries. We have a hypothesis that it has something to do with the paternity leave in the different countries. With our data on this, we will investigate further in this hypothesis...
+
+Now I will select the years 2011-2016, because these are the years where the two graphs can have the same factors
+
+```{r}
+fnselected<-  fnordic %>% filter(year %in% c("2011","2012", "2013","2014", "2015", "2016"))
+fnselected
+```
+
+
+```{r}
+ggplot(fnselected) +
+  geom_line(mapping = aes(x =  year, y = percentage, group = country, color = country)) + ggtitle("Share of Female Managers in Nordic Countries")
+```
+
+
+```{r}
+theme_set(theme_bw()) # I set the theme to black and white for better visualization
+ggplot(fmanagers_long) +
+  geom_line(mapping = aes(x = year, y =percentage, group = country)) +
+  geom_jitter(aes(color = country), alpha = 0.5, width = 0.2, height = 0.2))
+  
+```
+
+
+```{r}
+theme_set(theme_bw())
+ggplot(subset(fmanagers_long, country == "Iceland"), aes(year, percentage)) +
+  geom_point()
+```
+
+j <- ggplot(economics, aes(date, unemploy))
+
+j + geom_line()
+x, y, alpha, color, linetype, size 
+
+
+I thought it could be interesting to compare the lists of highest shares in 2011 and 2018 to see if something has changed... To conclude I finished scraping a website and ended up with a  table, but I did not end up visualizing anything, because the table should be structured in another way. This is what I need to practice for next time. 
+
+Question: Could the difficulties with the visualizations have something to do with the fact that R does not understand that the table shows percentages?? 
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(femalemanagers)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
