@@ -1,5 +1,5 @@
 ---
-title: "Maternity Leave"
+title: "R for Anthropologists"
 output: html_document
 editor_options: 
   chunk_output_type: inline
@@ -8,30 +8,38 @@ editor_options:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
+#INTRODUCTION
+In this guide we want to investigate the question: "How does the length of maternity leave influence the share of female managers in the Nordic Region?". Our process of this investigation will work as a guide on how to compare and see correlations between to quantitative datasets from OECD.Stat. Our guide includes 3 steps:
 
-# Loading packages
+1. Scrape, tidy, code and visualize statistical data from the dataset "Employment: Length of maternity leave, parental leave, and paid father-specific leave"
+
+2. Scrape, tidy, code and visualize statistical data from the dataset "Employment: Share of female managers"
+
+3. Merge the two datasets to see if there is a correlation between the length of maternity leave and the share of female managers in the Nordic Region
+
+# LOADING PACKAGES
+To get started we need to load different packages that will be useful in our script and examination. Each package allows us to access the data in different ways.
 
 ```{r libraries}
-library(rvest)
-library(dplyr)
-library(tidyr)
-library(stringr)
-library(janitor)
-library(tidyverse)
-library(ggplot2)
+library(rvest) #to scrape information from web pages
+library(dplyr) #to abstract over how the data is stored
+library(tidyr) #to create tidy data
+library(stringr) #to work with strings as easy as possible
+library(janitor) #to examine and clean dirty data
+library(tidyverse) #to collect some of the most versatile R packages
+library(ggplot2) #to create visualizations and graphs
 ```
 
-# Scraping data
-
-First I scrape the content of the website and extract the HTML table
-```{r}
-url <- "https://stats.oecd.org/index.aspx?queryid=54760&fbclid=IwAR1Jt-NDjC_e4iBKlxrIpKSIBGtmsJYY1V2R6UmEIXT_sAelAk1_2S_YvRU#"
+# SCRAPING DATA FROM OECD.STAT
+To investigate the datasets from OECD.Stat we will now scrape the website for data. I scrape the content of the website and extract the HTML table
+```{r webscrape}
+url <- "https://stats.oecd.org/index.aspx?queryid=54760&fbclid=IwAR1Jt-NDjC_e4iBKlxrIpKSIBGtmsJYY1V2R6UmEIXT_sAelAk1_2S_YvRU#" 
 # scrape the website
 url_html <- read_html(url)
 ```
 
 Then I extract the whole HTML table through the <table> tag.
-```{r}
+```{r webscrape and assign object}
 whole_table <- url_html %>% 
  html_nodes("table") %>%
  html_table(fill = TRUE)  #str(whole_table) turns out to be a list
@@ -75,24 +83,23 @@ In the table the countries are set to be characters. In the following I change t
 mleave$country <- as.factor(mleave$country) #Columns from characters to factor
 ```
 
-In the following I restructure the table so it knows that every country has numers from different years.
+In the following I restructure the table so it knows that every country has numbers from different years.
 
 ```{r, years}
 mleave_long <- mleave %>% gather(year, weeks_mleave, -country) #restructuring the table so it knows that every country has numbers from different years
 
 ```
 
-Now we have finished tidying the table from OECD and can begin making visualizations.  
 
-# Visualizations 
+# VISUALIZATIONS
+Now that we have finished tidying the table from OECD.Stat, we can begin making visualizations. In order to do so we need a few more packages-
 
 ```{r, packages}
 install.packages("gifski")
 install.packages("png")
-library(gifski)
-library(png)
-library(ggplot2)
-library(scales)
+library(gifski) #to convert images to GIF animations
+library(png) #to read, write and display the PNG format
+library(scales) #to manipulate and polish visualizations
 ```
 
 Meta: Line geoms, point geom, bars geoms 
@@ -112,10 +119,11 @@ ggplot(mleave_long) +
   geom_line(mapping = aes(x = year, y = weeks_mleave, group = country, color = country))
 
 ```
+As we can see above, many years are included in the visualization. We want to make our visualizations more clear and specific by focusing on the countries in the Nordic Region: Denmark, Iceland, Sweden, Norway and Finland. We chose to compare these countries, as they have similiar scandinavian welfare models. Furthermore, since the dataset which we want to compare this with only have data from 2011-2018, we filter the years so our new assigned value will include the countries 2011-2016. 
 
-```{r}
-mnordic <-  mleave_long %>% filter(country %in% c("Denmark","Iceland", "Sweden","Norway", "Finland")) %>%  filter(year %in% c("X2011", "X2012", "X2013", "X2013", "X2014", "X2015", "X2016"))
-mnordic$year <- str_remove(mnordic$year, "X")
+```{r assigning the nordic region}
+mnordic <-  mleave_long %>% filter(country %in% c("Denmark","Iceland", "Sweden","Norway", "Finland")) %>%  filter(year %in% c("X2011", "X2012", "X2013", "X2013", "X2014", "X2015", "X2016")) #assigning the nordic countries and time period
+mnordic$year <- str_remove(mnordic$year, "X") #filtering about the "X" that popped in to our model earlier
 ```
 
 ```{r}
