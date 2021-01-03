@@ -1,0 +1,29 @@
+{
+  "profile": "tabular-data-package",
+  "resources": [
+    {
+      "name": "Final Project",
+      "path": "https://github.com/Digital-Methods-HASS/au612385_fonnesbaek_helene/tree/master/Final%20Project",
+      "profile": "tabular-data-resource",
+      "schema": {}
+    }
+  ],
+  "keywords": [
+    "R Studio for Beginners, OECD.Stat, Gender Equality"
+  ],
+  "name": "Helene Andersen",
+  "title": "Final Project",
+  "description": "This project is a guide on how to scrape, tidy and code statistical data from OECD.Stat in RStudio. The target group of the guide is researchers working within humanities or the social sciences that do not have experience with RStudio. The guide is based on statistical data from OECD.Stat which is a data platform that covers culturally relevant issues.",
+  "contributors": [
+    {
+      "title": "Helene F. Andersen",
+      "role": "author"
+    }
+  ],
+  "licenses": [
+    {
+      "title": "MIT License",
+      "path": "https://github.com/Digital-Methods-HASS/au612385_fonnesbaek_helene/tree/master/Final%20Project"
+    }
+  ]
+}
